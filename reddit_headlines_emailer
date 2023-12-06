@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Jun  2 21:52:15 2022
+
+@author: brandon
+"""
+
+import praw
+import pandas as pd
+import datetime as dt
+from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+from smtplib import SMTP
+import smtplib
+import sys
+
+
+#authenticate through reddit app/api
+reddit = praw.Reddit(client_id= <CLIENT_ID>, \
+                     client_secret= <CLIENT_SECRET>, \
+                     user_agent= <USER_AGENT>, \
+                     username= <USERNAME>, \
+                     password= <PASSWORD>)
+    
+#indentify the subreddit, and how many records you want to pull
+#also specify that we want the 'hot' articles
+subreddit = reddit.subreddit('interestingasfuck') #replace this with whichever subreddit you want.
+hot_subreddit = subreddit.hot(limit=12)
+
+#create dict to store the data we pull from subreddit
+topics_dict = { "title":[], \
+                "score":[], \
+                "url":[], \
+                "comms_num": [], \
+                "created": []}
+
+#loop through the data and store the data in the dict
+for submission in hot_subreddit:
+    topics_dict["title"].append(submission.title)
+    topics_dict["score"].append(submission.score)
+    topics_dict["url"].append(submission.url)
+    topics_dict["comms_num"].append(submission.num_comments)
+    topics_dict["created"].append(submission.created)
+
+#convert the data into a dataframe/table
+df = pd.DataFrame(topics_dict)
+
+#function to convert the UNIX date column into normal date column
+#apply the function and then drop the old date column
+def get_date(created):
+    return dt.datetime.fromtimestamp(created)
+
+df['created_at'] = df["created"].apply(get_date)
+df.drop('created', axis=1, inplace=True)
+df.drop([0, 1], inplace=True)
+df.reset_index(drop=True, inplace=True)
+
+
+#send the dataframe as an email
+
+
+login = str(<YOUR YAHOO EMAIL ADDRESS>)  
+creds = str(<YAHOO EMAIL API CREDENTIALS) 
+
+
+recipients = <ANY EMAIL ADDRESS> #string
+#emaillist = [elem.strip().split(',') for elem in recipients]
+msg = MIMEMultipart()
+msg['Subject'] = "Your Daily Reddit Headlines" #make this anything you like
+msg['From'] = <YOUR EMAIL ADDRESS> #string
+
+html = """\
+<html>
+  <head></head>
+  <body>
+    {0}
+  </body>
+</html>
+""".format(df.to_html())
+
+part1 = MIMEText(html, 'html')
+msg.attach(part1)
+    
+server = smtplib.SMTP("smtp.mail.yahoo.com",587) #this will differ if you're not using a yahoo address to send the email. 
+server.ehlo()
+server.starttls()
+server.ehlo()
+server.login(login, creds)
+server.sendmail(msg['From'], recipients , msg.as_string())
+server.quit() 
+
+print("Email Sent.")
+
+    
+    
+    
+    
+    
